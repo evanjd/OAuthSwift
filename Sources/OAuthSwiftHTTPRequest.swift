@@ -17,6 +17,9 @@ let kHTTPHeaderContentType = "Content-Type"
 
 open class OAuthSwiftHTTPRequest: NSObject, OAuthSwiftRequestHandle {
 
+    // Using NSLock for Linux compatible locking 
+    let requestLock = NSLock()
+
     public typealias CompletionHandler = (_ result: Result<OAuthSwiftResponse, OAuthSwiftError>) -> Void
 
     /// HTTP request method
@@ -74,8 +77,8 @@ open class OAuthSwiftHTTPRequest: NSObject, OAuthSwiftRequestHandle {
 
         OAuthSwiftHTTPRequest.executionContext {
             // perform lock here to prevent cancel calls on another thread while creating the request
-            objc_sync_enter(self)
-            defer { objc_sync_exit(self) }
+            self.requestLock.lock()
+            defer { self.requestLock.unlock() }
             if self.cancelRequested {
                 return
             }
@@ -101,7 +104,9 @@ open class OAuthSwiftHTTPRequest: NSObject, OAuthSwiftRequestHandle {
 
             #if os(iOS)
                 #if !OAUTH_APP_EXTENSIONS
+                #if !targetEnvironment(macCatalyst)
                     UIApplication.shared.isNetworkActivityIndicatorVisible = self.config.sessionFactory.isNetworkActivityIndicatorVisible
+                    #endif
                 #endif
             #endif
         }
@@ -111,7 +116,9 @@ open class OAuthSwiftHTTPRequest: NSObject, OAuthSwiftRequestHandle {
     public static func completionHandler(completionHandler completion: CompletionHandler?, request: URLRequest, data: Data?, resp: URLResponse?, error: Error?) {
         #if os(iOS)
         #if !OAUTH_APP_EXTENSIONS
+        #if !targetEnvironment(macCatalyst)
         UIApplication.shared.isNetworkActivityIndicatorVisible = false
+        #endif
         #endif
         #endif
 
@@ -202,8 +209,8 @@ open class OAuthSwiftHTTPRequest: NSObject, OAuthSwiftRequestHandle {
 
     open func cancel() {
         // perform lock here to prevent cancel calls on another thread while creating the request
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
+        requestLock.lock()
+        defer { requestLock.unlock() }
         // either cancel the request if it's already running or set the flag to prohibit creation of the request
         if let task = task {
             task.cancel()
