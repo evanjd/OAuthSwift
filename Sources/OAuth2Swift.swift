@@ -381,6 +381,30 @@ open class OAuth2Swift: OAuthSwift {
         )
     }
 
+    @discardableResult
+    open func authorize(accessToken: String, tokenIssuer: String, audience: String, scope: String?, headers: OAuthSwift.Headers? = nil, completionHandler completion: @escaping TokenCompletionHandler) -> OAuthSwiftRequestHandle? {
+
+        var parameters = OAuthSwift.Parameters()
+        parameters["client_id"] = self.consumerKey
+        parameters["client_secret"] = self.consumerSecret
+        parameters["subject_token"] = accessToken
+        parameters["subject_issuer"] = tokenIssuer
+        parameters["audience"] = audience
+        parameters["grant_type"] = "urn:ietf:params:oauth:grant-type:token-exchange"
+        parameters["subject_token_type"] = "urn:ietf:params:oauth:token-type:id_token"
+        parameters["requested_token_type"] = "urn:ietf:params:oauth:token-type:refresh_token"
+
+        if let scope = scope {
+            parameters["scope"] = scope
+        }
+
+        return requestOAuthAccessToken(
+            withParameters: parameters,
+            headers: headers,
+            completionHandler: completion
+        )
+    }
+
     /// use RFC7636 PKCE credentials - convenience method
     @discardableResult
     open func authorize(withCallbackURL url: URLConvertible, scope: String, state: String, codeChallenge: String, codeChallengeMethod: String = "S256", codeVerifier: String, parameters: Parameters = [:], headers: OAuthSwift.Headers? = nil, completionHandler completion: @escaping TokenCompletionHandler) -> OAuthSwiftRequestHandle? {
